@@ -1,5 +1,6 @@
 import prompt
 
+
 def welcome() -> None:
     HELP = '''
 <command> exit - выйти из программы
