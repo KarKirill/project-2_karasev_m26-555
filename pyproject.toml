@@ -7,7 +7,9 @@ authors = [
     { name = "KarKirill", email = "karasevkirill2004@mail.ru" }
 ]
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "prompt>=0.4.1",
+]
 
 [project.scripts]
 project = "primitive_db.main:main"
