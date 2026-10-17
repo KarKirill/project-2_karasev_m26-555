@@ -79,3 +79,28 @@ def parse_set(
         raise ValueError('Столбец ID изменять нельзя.')
 
     return set_clause
+
+
+
+def parse_update(user_input: str) -> tuple[str, str, str]:
+    '''Разбирает UPDATE на таблицу, SET и WHERE.'''
+    parts = user_input.strip().split(maxsplit=3)
+
+    if (
+        len(parts) != 4
+        or parts[0] != 'update'
+        or parts[2] != 'set'
+    ):
+        raise ValueError(
+            'Ожидается: update <таблица> '
+            'set <условие> where <условие>'
+        )
+
+    table_name = parts[1]
+
+    set_text, separator, where_text = parts[3].partition(' where ')
+
+    if not separator or not set_text.strip() or not where_text.strip():
+        raise ValueError('Для UPDATE необходимо условие WHERE.')
+
+    return table_name, set_text.strip(), where_text.strip()
