@@ -1,5 +1,5 @@
 import json
-
+from primitive_db.constants import ID_COLUMN
 
 def parse_insert(user_input: str) -> tuple[str, list]:
     '''Разбирает команду INSERT на имя таблицы и значения.'''
@@ -65,3 +65,17 @@ def parse_where(
         )
 
     return {column_name: value}
+
+
+
+def parse_set(
+    condition: str,
+    schema: dict[str, str],
+) -> dict[str, object]:
+    '''Разбирает условие SET и проверяет новое значение.'''
+    set_clause = parse_where(condition, schema)
+
+    if ID_COLUMN in set_clause:
+        raise ValueError('Столбец ID изменять нельзя.')
+
+    return set_clause
