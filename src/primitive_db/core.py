@@ -138,3 +138,25 @@ def update(
         record.update(set_clause)
 
     return table_data
+
+
+
+def delete(
+    table_data: list[dict],
+    where_clause: dict,
+) -> list[dict]:
+    '''Удаляет записи, соответствующие условию WHERE.'''
+    if not where_clause:
+        raise ValueError('Необходимо указать условие WHERE.')
+
+    matching_records = select(table_data, where_clause)
+
+    matching_ids = {
+        record[ID_COLUMN] for record in matching_records
+    }
+
+    return [
+        record
+        for record in table_data
+        if record[ID_COLUMN] not in matching_ids
+    ]
