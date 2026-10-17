@@ -1,5 +1,7 @@
 import json
+
 from primitive_db.constants import ID_COLUMN
+
 
 def parse_insert(user_input: str) -> tuple[str, list]:
     '''Разбирает команду INSERT на имя таблицы и значения.'''
