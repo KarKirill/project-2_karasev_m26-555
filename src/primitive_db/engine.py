@@ -6,13 +6,20 @@ from prettytable import PrettyTable
 from primitive_db.constants import ID_COLUMN, META_FILE
 from primitive_db.core import (
     create_table,
+    delete,
     drop_table,
     insert,
     list_tables,
     select,
     update,
 )
-from primitive_db.parser import parse_insert, parse_set, parse_update, parse_where
+from primitive_db.parser import (
+    parse_delete,
+    parse_insert,
+    parse_set,
+    parse_update,
+    parse_where,
+)
 from primitive_db.utils import (
     load_metadata,
     load_table_data,
@@ -61,20 +68,24 @@ def print_help():
     print('<command> help - справочная информация')
     print('<command> exit - выход из программы\n')
     print(
-        "<command> insert into <таблица> "
-        "values (<значения>) - добавить запись"
+        '<command> insert into <таблица> '
+        'values (<значения>) - добавить запись'
     )
     print(
-        "<command> select from <имя_таблицы> "
-        "- показать все записи"
+        '<command> select from <имя_таблицы> '
+        '- показать все записи'
     )
     print(
-        "<command> select from <таблица> "
-        "where <столбец> = <значение> - поиск по условию"
+        '<command> select from <таблица> '
+        'where <столбец> = <значение> - поиск по условию'
     )
     print(
-        "<command> update <таблица> set <столбец> = <значение> "
-        "where <столбец> = <значение> - обновить записи"
+        '<command> update <таблица> set <столбец> = <значение> '
+        'where <столбец> = <значение> - обновить записи'
+    )
+    print(
+        '<command> delete from <таблица> '
+        'where <столбец> = <значение> - удалить записи'
     )
 
 
@@ -244,6 +255,39 @@ def run():
                         f'Запись с ID={record_id} в таблице '
                         f'"{table_name}" успешно обновлена.'
                     )
+
+
+            elif command == "delete":
+                table_name, where_text = parse_delete(user_input)
+
+                if table_name not in metadata:
+                    raise KeyError(
+                        f'Таблица "{table_name}" не существует.'
+                    )
+
+                schema = metadata[table_name]
+                where_clause = parse_where(where_text, schema)
+
+                table_data = load_table_data(table_name)
+                matching_records = select(table_data, where_clause)
+
+                if not matching_records:
+                    print("Записи по условию WHERE не найдены.")
+                    continue
+
+                deleted_ids = [
+                    record[ID_COLUMN] for record in matching_records
+                ]
+
+                updated_data = delete(table_data, where_clause)
+                save_table_data(table_name, updated_data)
+
+                for record_id in deleted_ids:
+                    print(
+                        f"Запись с ID={record_id} успешно удалена "
+                        f'из таблицы "{table_name}".'
+                    )
+
 
             else:
                 print(
