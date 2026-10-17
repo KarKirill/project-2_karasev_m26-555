@@ -106,3 +106,25 @@ def parse_update(user_input: str) -> tuple[str, str, str]:
         raise ValueError('Для UPDATE необходимо условие WHERE.')
 
     return table_name, set_text.strip(), where_text.strip()
+
+
+
+def parse_delete(user_input: str) -> tuple[str, str]:
+    '''Разбирает DELETE на имя таблицы и условие WHERE.'''
+    parts = user_input.strip().split(maxsplit=4)
+
+    if (
+        len(parts) != 5
+        or parts[0] != 'delete'
+        or parts[1] != 'from'
+        or parts[3] != 'where'
+    ):
+        raise ValueError(
+            'Ожидается: delete from <таблица> '
+            'where <столбец> = <значение>'
+        )
+
+    table_name = parts[2]
+    where_text = parts[4]
+
+    return table_name, where_text
