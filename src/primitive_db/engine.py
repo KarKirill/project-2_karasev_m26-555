@@ -1,14 +1,17 @@
 import shlex
 
 import prompt
+from prettytable import PrettyTable
 
-from primitive_db.constants import META_FILE
-from primitive_db.core import (
-    create_table,
-    drop_table,
-    list_tables,
+from primitive_db.constants import ID_COLUMN, META_FILE
+from primitive_db.core import create_table, drop_table, insert, list_tables, select
+from primitive_db.parser import parse_insert
+from primitive_db.utils import (
+    load_metadata,
+    load_table_data,
+    save_metadata,
+    save_table_data,
 )
-from primitive_db.utils import load_metadata, save_metadata
 
 
 def welcome() -> None:
@@ -50,6 +53,14 @@ def print_help():
     print('<command> drop_table <имя_таблицы> - удалить таблицу')
     print('<command> help - справочная информация')
     print('<command> exit - выход из программы\n')
+    print(
+        "<command> insert into <таблица> "
+        "values (<значения>) - добавить запись"
+    )
+    print(
+        "<command> select from <имя_таблицы> "
+        "- показать все записи"
+    )
 
 
 def run():
@@ -119,6 +130,50 @@ def run():
                 print('Завершение работы.')
                 break
 
+            elif command == 'insert':
+                table_name, values = parse_insert(user_input)
+
+                data = insert(metadata, table_name, values)
+
+                save_table_data(table_name, data)
+
+                new_id = data[-1][ID_COLUMN]
+
+                print(
+                    f'Запись с ID={new_id} успешно добавлена '
+                    f'в таблицу "{table_name}".'
+                )
+
+
+            elif command == 'select':
+                if len(params) != 2 or params[0] != 'from':
+                    raise ValueError(
+                        'Ожидается: select from <имя_таблицы>'
+                    )
+
+                table_name = params[1]
+
+                if table_name not in metadata:
+                    raise KeyError(
+                        f'Таблица "{table_name}" не существует.'
+                    )
+
+                table_data = load_table_data(table_name)
+                records = select(table_data)
+
+                table = PrettyTable()
+                table.field_names = list(metadata[table_name])
+
+                for record in records:
+                    table.add_row(
+                        [
+                            record[column]
+                            for column in table.field_names
+                        ]
+                    )
+
+                print(table)
+
             else:
                 print(
                     f'Функции {command} нет. Попробуйте снова.'
@@ -129,9 +184,7 @@ def run():
         except KeyError as error:
             print(f'Ошибка: {error.args[0]}')
         except ValueError as error:
-            print(
-                f'Некорректное значение: {error}. '
-                'Попробуйте снова.'
-            )
+            message = str(error).rstrip(".")
+            print(f"Некорректное значение: {message}. Попробуйте снова.")
         except OSError as error:
             print(f'Ошибка при работе с файлом: {error}')
