@@ -5,7 +5,7 @@ from prettytable import PrettyTable
 
 from primitive_db.constants import ID_COLUMN, META_FILE
 from primitive_db.core import create_table, drop_table, insert, list_tables, select
-from primitive_db.parser import parse_insert
+from primitive_db.parser import parse_insert, parse_where
 from primitive_db.utils import (
     load_metadata,
     load_table_data,
@@ -61,7 +61,10 @@ def print_help():
         "<command> select from <имя_таблицы> "
         "- показать все записи"
     )
-
+    print(
+        "<command> select from <таблица> "
+        "where <столбец> = <значение> - поиск по условию"
+    )
 
 def run():
     '''Запускает основной цикл обработки команд.'''
@@ -144,22 +147,38 @@ def run():
                     f'в таблицу "{table_name}".'
                 )
 
-
             elif command == 'select':
-                if len(params) != 2 or params[0] != 'from':
+                parts = user_input.strip().split(maxsplit=4)
+
+                if len(parts) not in (3, 5) or parts[:2] != [
+                    'select',
+                    'from',
+                ]:
                     raise ValueError(
-                        'Ожидается: select from <имя_таблицы>'
+                        'Ожидается: select from <таблица> '
+                        '[where <столбец> = <значение>]'
                     )
 
-                table_name = params[1]
+                table_name = parts[2]
 
                 if table_name not in metadata:
                     raise KeyError(
                         f'Таблица "{table_name}" не существует.'
                     )
 
+                where_clause = None
+
+                if len(parts) == 5:
+                    if parts[3] != 'where':
+                        raise ValueError('Ожидается ключевое слово where.')
+
+                    where_clause = parse_where(
+                        parts[4],
+                        metadata[table_name],
+                    )
+
                 table_data = load_table_data(table_name)
-                records = select(table_data)
+                records = select(table_data, where_clause)
 
                 table = PrettyTable()
                 table.field_names = list(metadata[table_name])
