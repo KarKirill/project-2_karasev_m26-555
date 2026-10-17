@@ -4,8 +4,15 @@ import prompt
 from prettytable import PrettyTable
 
 from primitive_db.constants import ID_COLUMN, META_FILE
-from primitive_db.core import create_table, drop_table, insert, list_tables, select
-from primitive_db.parser import parse_insert, parse_where
+from primitive_db.core import (
+    create_table,
+    drop_table,
+    insert,
+    list_tables,
+    select,
+    update,
+)
+from primitive_db.parser import parse_insert, parse_set, parse_update, parse_where
 from primitive_db.utils import (
     load_metadata,
     load_table_data,
@@ -65,6 +72,11 @@ def print_help():
         "<command> select from <таблица> "
         "where <столбец> = <значение> - поиск по условию"
     )
+    print(
+        "<command> update <таблица> set <столбец> = <значение> "
+        "where <столбец> = <значение> - обновить записи"
+    )
+
 
 def run():
     '''Запускает основной цикл обработки команд.'''
@@ -192,6 +204,46 @@ def run():
                     )
 
                 print(table)
+
+            elif command == 'update':
+                table_name, set_text, where_text = parse_update(
+                    user_input
+                )
+
+                if table_name not in metadata:
+                    raise KeyError(
+                        f'Таблица "{table_name}" не существует.'
+                    )
+
+                schema = metadata[table_name]
+
+                set_clause = parse_set(set_text, schema)
+                where_clause = parse_where(where_text, schema)
+
+                table_data = load_table_data(table_name)
+
+                matching_records = select(table_data, where_clause)
+                record_ids = [
+                    record[ID_COLUMN] for record in matching_records
+                ]
+
+                if not record_ids:
+                    print('Записи по условию WHERE не найдены.')
+                    continue
+
+                updated_data = update(
+                    table_data,
+                    set_clause,
+                    where_clause,
+                )
+
+                save_table_data(table_name, updated_data)
+
+                for record_id in record_ids:
+                    print(
+                        f'Запись с ID={record_id} в таблице '
+                        f'"{table_name}" успешно обновлена.'
+                    )
 
             else:
                 print(

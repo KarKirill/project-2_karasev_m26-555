@@ -117,3 +117,24 @@ def select(
             for column, value in where_clause.items()
         )
     ]
+
+
+
+def update(
+    table_data: list[dict],
+    set_clause: dict,
+    where_clause: dict,
+) -> list[dict]:
+    '''Обновляет записи, удовлетворяющие условию WHERE.'''
+    if not where_clause:
+        raise ValueError('Необходимо указать условие WHERE.')
+
+    if ID_COLUMN in set_clause:
+        raise ValueError('Столбец ID изменять нельзя.')
+
+    records = select(table_data, where_clause)
+
+    for record in records:
+        record.update(set_clause)
+
+    return table_data
