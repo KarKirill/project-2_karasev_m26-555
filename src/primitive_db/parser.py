@@ -29,3 +29,39 @@ def parse_insert(user_input: str) -> tuple[str, list]:
         ) from error
 
     return table_name, values
+
+
+
+def parse_where(
+    condition: str,
+    schema: dict[str, str],
+) -> dict[str, object]:
+    '''Разбирает условие WHERE и проверяет тип значения.'''
+    column_name, separator, raw_value = condition.partition('=')
+
+    column_name = column_name.strip()
+    raw_value = raw_value.strip()
+
+    if not separator or not column_name or not raw_value:
+        raise ValueError('Ожидается условие: столбец = значение')
+
+    if column_name not in schema:
+        raise ValueError(f'Столбец "{column_name}" не существует.')
+
+    try:
+        value = json.loads(raw_value)
+    except json.JSONDecodeError as error:
+        raise ValueError(
+            'Некорректное значение WHERE. '
+            'Строки указывайте в двойных кавычках.'
+        ) from error
+
+    expected_type = schema[column_name]
+
+    if type(value).__name__ != expected_type:
+        raise ValueError(
+            f'Некорректный тип для столбца "{column_name}". '
+            f'Ожидается {expected_type}.'
+        )
+
+    return {column_name: value}
