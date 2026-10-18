@@ -160,3 +160,17 @@ def delete(
         for record in table_data
         if record[ID_COLUMN] not in matching_ids
     ]
+
+
+
+def get_table_info(
+    metadata: dict,
+    table_name: str,
+) -> dict[str, str]:
+    '''Возвращает структуру существующей таблицы.'''
+    if table_name not in metadata:
+        raise KeyError(
+            f'Таблица "{table_name}" не существует.'
+        )
+
+    return metadata[table_name]
