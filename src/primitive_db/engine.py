@@ -8,6 +8,7 @@ from primitive_db.core import (
     create_table,
     delete,
     drop_table,
+    get_table_info,
     insert,
     list_tables,
     select,
@@ -86,6 +87,10 @@ def print_help():
     print(
         '<command> delete from <таблица> '
         'where <столбец> = <значение> - удалить записи'
+    )
+    print(
+        '<command> info <имя_таблицы> '
+        '- информация о таблице'
     )
 
 
@@ -287,6 +292,26 @@ def run():
                         f"Запись с ID={record_id} успешно удалена "
                         f'из таблицы "{table_name}".'
                     )
+
+            elif command == 'info':
+                if len(params) != 1:
+                    raise ValueError(
+                        'Ожидается: info <имя_таблицы>'
+                    )
+
+                table_name = params[0]
+
+                schema = get_table_info(metadata, table_name)
+                table_data = load_table_data(table_name)
+
+                columns = ', '.join(
+                    f'{name}:{column_type}'
+                    for name, column_type in schema.items()
+                )
+
+                print(f'Таблица: {table_name}')
+                print(f'Столбцы: {columns}')
+                print(f'Количество записей: {len(table_data)}')
 
 
             else:
