@@ -22,6 +22,7 @@ from primitive_db.parser import (
     parse_where,
 )
 from primitive_db.utils import (
+    delete_table_data,
     load_metadata,
     load_table_data,
     save_metadata,
@@ -131,11 +132,14 @@ def run():
 
             elif command == 'drop_table':
                 if len(params) != 1:
-                    raise ValueError('укажите имя таблицы')
+                    raise ValueError('Укажите имя таблицы.')
 
                 table_name = params[0]
+
                 drop_table(metadata, table_name)
+                delete_table_data(table_name)
                 save_metadata(META_FILE, metadata)
+
                 print(f'Таблица "{table_name}" успешно удалена.')
 
             elif command == 'list_tables':
