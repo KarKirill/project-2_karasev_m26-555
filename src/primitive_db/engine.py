@@ -16,7 +16,7 @@ from primitive_db.core import (
     select,
     update,
 )
-from primitive_db.decorators import confirm_action, handle_db_errors
+from primitive_db.decorators import confirm_action, handle_db_errors, log_time
 from primitive_db.parser import (
     parse_delete,
     parse_insert,
@@ -124,6 +124,68 @@ def confirmed_delete_records(
         )
 
 
+@log_time
+def execute_insert(metadata: dict, user_input: str) -> None:
+    '''Добавляет запись и сохраняет изменения в JSON.'''
+    table_name, values = parse_insert(user_input)
+
+    data = insert(metadata, table_name, values)
+    save_table_data(table_name, data)
+
+    new_id = data[-1][ID_COLUMN]
+
+    print(
+        f'Запись с ID={new_id} успешно добавлена '
+        f'в таблицу "{table_name}".'
+    )
+
+
+@log_time
+def execute_select(metadata: dict, user_input: str) -> None:
+    '''Выполняет SELECT и выводит результаты в таблицу.'''
+    parts = user_input.strip().split(maxsplit=4)
+
+    if len(parts) not in (3, 5) or parts[:2] != [
+        'select',
+        'from',
+    ]:
+        raise ValueError(
+            'Ожидается: select from <таблица> '
+            '[where <столбец> = <значение>]'
+        )
+
+    table_name = parts[2]
+
+    if table_name not in metadata:
+        raise KeyError(
+            f'Таблица "{table_name}" не существует.'
+        )
+
+    where_clause = None
+
+    if len(parts) == 5:
+        if parts[3] != 'where':
+            raise ValueError('Ожидается ключевое слово where.')
+
+        where_clause = parse_where(
+            parts[4],
+            metadata[table_name],
+        )
+
+    table_data = load_table_data(table_name)
+    records = select(table_data, where_clause)
+
+    table = PrettyTable()
+    table.field_names = list(metadata[table_name])
+
+    for record in records:
+        table.add_row(
+            [record[column] for column in table.field_names]
+        )
+
+    print(table)
+
+
 def run() -> None:
     '''Запускает основной цикл ввода команд.'''
     print_help()
@@ -198,47 +260,10 @@ def execute_command(user_input: str) -> bool:
         return False
 
     elif command == 'insert':
-        table_name, values = parse_insert(user_input)
-        data = insert(metadata, table_name, values)
-        save_table_data(table_name, data)
-
-        new_id = data[-1][ID_COLUMN]
-        print(
-            f'Запись с ID={new_id} успешно добавлена '
-            f'в таблицу "{table_name}".'
-        )
+        execute_insert(metadata, user_input)
 
     elif command == 'select':
-        parts = user_input.strip().split(maxsplit=4)
-        if len(parts) not in (3, 5) or parts[:2] != [
-            'select',
-            'from',
-        ]:
-            raise ValueError(
-                'Ожидается: select from <таблица> '
-                '[where <столбец> = <значение>]'
-            )
-
-        table_name = parts[2]
-        if table_name not in metadata:
-            raise KeyError(f'Таблица "{table_name}" не существует.')
-
-        where_clause = None
-        if len(parts) == 5:
-            if parts[3] != 'where':
-                raise ValueError('Ожидается ключевое слово where.')
-            where_clause = parse_where(parts[4], metadata[table_name])
-
-        table_data = load_table_data(table_name)
-        records = select(table_data, where_clause)
-
-        table = PrettyTable()
-        table.field_names = list(metadata[table_name])
-        for record in records:
-            table.add_row([
-                record[column] for column in table.field_names
-            ])
-        print(table)
+        execute_select(metadata, user_input)
 
     elif command == 'update':
         table_name, set_text, where_text = parse_update(user_input)
