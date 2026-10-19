@@ -1,5 +1,7 @@
 from functools import wraps
 
+import prompt
+
 
 def handle_db_errors(func):
     '''Обрабатывает ошибки при выполнении команд базы данных.'''
@@ -25,3 +27,28 @@ def handle_db_errors(func):
         return None
 
     return wrapper
+
+
+def confirm_action(action_name: str):
+    '''Запрашивает подтверждение перед выполнением действия.'''
+
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            while True:
+                answer = prompt.string(
+                    f'Подтвердите действие "{action_name}" [y/n]: '
+                ).strip().lower()
+
+                if answer == 'y':
+                    return func(*args, **kwargs)
+
+                if answer == 'n':
+                    print('Операция отменена.')
+                    return False
+
+                print('Введите y или n.')
+
+        return wrapper
+
+    return decorator

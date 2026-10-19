@@ -16,7 +16,7 @@ from primitive_db.core import (
     select,
     update,
 )
-from primitive_db.decorators import handle_db_errors
+from primitive_db.decorators import confirm_action, handle_db_errors
 from primitive_db.parser import (
     parse_delete,
     parse_insert,
@@ -95,8 +95,37 @@ def print_help() -> None:
     )
 
 
+@confirm_action("удалить таблицу")
+def confirmed_drop_table(metadata: dict, table_name: str) -> None:
+    '''Удаляет таблицу и её данные после подтверждения.'''
+    drop_table(metadata, table_name)
+    delete_table_data(table_name)
+    save_metadata(META_FILE, metadata)
+
+    print(f'Таблица "{table_name}" успешно удалена.')
+
+
+
+@confirm_action("удалить записи")
+def confirmed_delete_records(
+    table_name: str,
+    table_data: list[dict],
+    where_clause: dict,
+    deleted_ids: list[int],
+) -> None:
+    '''Удаляет записи после подтверждения пользователя.'''
+    updated_data = delete(table_data, where_clause)
+    save_table_data(table_name, updated_data)
+
+    for record_id in deleted_ids:
+        print(
+            f"Запись с ID={record_id} успешно удалена "
+            f'из таблицы "{table_name}".'
+        )
+
+
 def run() -> None:
-    """Запускает основной цикл ввода команд."""
+    '''Запускает основной цикл ввода команд.'''
     print_help()
 
     while True:
@@ -108,7 +137,7 @@ def run() -> None:
 
 @handle_db_errors
 def execute_command(user_input: str) -> bool:
-    """Выполняет одну команду базы данных; False означает выход."""
+    '''Выполняет одну команду базы данных; False означает выход.'''
     metadata = load_metadata(META_FILE)
     args = shlex.split(user_input)
 
@@ -140,11 +169,11 @@ def execute_command(user_input: str) -> bool:
             raise ValueError('Укажите имя таблицы.')
 
         table_name = params[0]
-        drop_table(metadata, table_name)
-        delete_table_data(table_name)
-        save_metadata(META_FILE, metadata)
 
-        print(f'Таблица "{table_name}" успешно удалена.')
+        if table_name not in metadata:
+            raise KeyError(f'Таблица "{table_name}" не существует.')
+
+        confirmed_drop_table(metadata, table_name)
 
     elif command == 'list_tables':
         if params:
@@ -237,29 +266,34 @@ def execute_command(user_input: str) -> bool:
                 f'"{table_name}" успешно обновлена.'
             )
 
-    elif command == 'delete':
+    elif command == "delete":
         table_name, where_text = parse_delete(user_input)
+
         if table_name not in metadata:
-            raise KeyError(f'Таблица "{table_name}" не существует.')
+            raise KeyError(
+                f'Таблица "{table_name}" не существует.'
+            )
 
         schema = metadata[table_name]
         where_clause = parse_where(where_text, schema)
 
         table_data = load_table_data(table_name)
         matching_records = select(table_data, where_clause)
+
         if not matching_records:
-            print('Записи по условию WHERE не найдены.')
+            print("Записи по условию WHERE не найдены.")
             return True
 
-        deleted_ids = [record[ID_COLUMN] for record in matching_records]
-        updated_data = delete(table_data, where_clause)
-        save_table_data(table_name, updated_data)
+        deleted_ids = [
+            record[ID_COLUMN] for record in matching_records
+        ]
 
-        for record_id in deleted_ids:
-            print(
-                f'Запись с ID={record_id} успешно удалена '
-                f'из таблицы "{table_name}".'
-            )
+        confirmed_delete_records(
+            table_name,
+            table_data,
+            where_clause,
+            deleted_ids,
+        )
 
     elif command == 'info':
         if len(params) != 1:
