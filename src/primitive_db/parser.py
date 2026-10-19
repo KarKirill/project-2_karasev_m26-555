@@ -33,7 +33,6 @@ def parse_insert(user_input: str) -> tuple[str, list]:
     return table_name, values
 
 
-
 def parse_where(
     condition: str,
     schema: dict[str, str],
@@ -69,7 +68,6 @@ def parse_where(
     return {column_name: value}
 
 
-
 def parse_set(
     condition: str,
     schema: dict[str, str],
@@ -81,7 +79,6 @@ def parse_set(
         raise ValueError('Столбец ID изменять нельзя.')
 
     return set_clause
-
 
 
 def parse_update(user_input: str) -> tuple[str, str, str]:
@@ -99,14 +96,9 @@ def parse_update(user_input: str) -> tuple[str, str, str]:
         )
 
     table_name = parts[1]
+    set_text, where_text = split_where(parts[3])
 
-    set_text, separator, where_text = parts[3].partition(' where ')
-
-    if not separator or not set_text.strip() or not where_text.strip():
-        raise ValueError('Для UPDATE необходимо условие WHERE.')
-
-    return table_name, set_text.strip(), where_text.strip()
-
+    return table_name, set_text, where_text
 
 
 def parse_delete(user_input: str) -> tuple[str, str]:
@@ -128,3 +120,32 @@ def parse_delete(user_input: str) -> tuple[str, str]:
     where_text = parts[4]
 
     return table_name, where_text
+
+
+def split_where(text: str) -> tuple[str, str]:
+    '''Разделяет SET и WHERE, учитывая кавычки.'''
+    in_quotes = False
+    escaped = False
+    delimiter = ' where '
+
+    for index, char in enumerate(text):
+        if escaped:
+            escaped = False
+            continue
+
+        if char == '\\' and in_quotes:
+            escaped = True
+            continue
+
+        if char == '"':
+            in_quotes = not in_quotes
+            continue
+
+        if not in_quotes and text.startswith(delimiter, index):
+            set_text = text[:index].strip()
+            where_text = text[index + len(delimiter):].strip()
+
+            if set_text and where_text:
+                return set_text, where_text
+
+    raise ValueError('Для UPDATE необходимо условие WHERE.')
