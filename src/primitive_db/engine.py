@@ -16,7 +16,12 @@ from primitive_db.core import (
     select,
     update,
 )
-from primitive_db.decorators import confirm_action, handle_db_errors, log_time
+from primitive_db.decorators import (
+    confirm_action,
+    create_cacher,
+    handle_db_errors,
+    log_time,
+)
 from primitive_db.parser import (
     parse_delete,
     parse_insert,
@@ -101,9 +106,9 @@ def confirmed_drop_table(metadata: dict, table_name: str) -> None:
     drop_table(metadata, table_name)
     delete_table_data(table_name)
     save_metadata(META_FILE, metadata)
+    get_cached_records.clear_cache()
 
     print(f'Таблица "{table_name}" успешно удалена.')
-
 
 
 @confirm_action("удалить записи")
@@ -116,10 +121,11 @@ def confirmed_delete_records(
     '''Удаляет записи после подтверждения пользователя.'''
     updated_data = delete(table_data, where_clause)
     save_table_data(table_name, updated_data)
+    get_cached_records.clear_cache()
 
     for record_id in deleted_ids:
         print(
-            f"Запись с ID={record_id} успешно удалена "
+            f'Запись с ID={record_id} успешно удалена '
             f'из таблицы "{table_name}".'
         )
 
@@ -131,6 +137,7 @@ def execute_insert(metadata: dict, user_input: str) -> None:
 
     data = insert(metadata, table_name, values)
     save_table_data(table_name, data)
+    get_cached_records.clear_cache()
 
     new_id = data[-1][ID_COLUMN]
 
@@ -138,6 +145,17 @@ def execute_insert(metadata: dict, user_input: str) -> None:
         f'Запись с ID={new_id} успешно добавлена '
         f'в таблицу "{table_name}".'
     )
+
+
+@create_cacher()
+def get_cached_records(
+    table_name: str,
+    where_clause: dict | None = None,
+) -> list[dict]:
+    '''Возвращает записи таблицы с кэшированием результата.'''
+
+    table_data = load_table_data(table_name)
+    return select(table_data, where_clause)
 
 
 @log_time
@@ -172,8 +190,7 @@ def execute_select(metadata: dict, user_input: str) -> None:
             metadata[table_name],
         )
 
-    table_data = load_table_data(table_name)
-    records = select(table_data, where_clause)
+    records = get_cached_records(table_name, where_clause)
 
     table = PrettyTable()
     table.field_names = list(metadata[table_name])
@@ -284,6 +301,7 @@ def execute_command(user_input: str) -> bool:
 
         updated_data = update(table_data, set_clause, where_clause)
         save_table_data(table_name, updated_data)
+        get_cached_records.clear_cache()
 
         for record_id in record_ids:
             print(

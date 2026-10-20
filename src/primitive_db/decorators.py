@@ -1,4 +1,6 @@
+import json
 import time
+from copy import deepcopy
 from functools import wraps
 
 import prompt
@@ -72,3 +74,28 @@ def log_time(func):
             )
 
     return wrapper
+
+
+def create_cacher():
+    '''Создаёт декоратор для кэширования результатов функции.'''
+    cache = {}
+
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            key = json.dumps(
+                [args, kwargs],
+                sort_keys=True,
+                ensure_ascii=False
+            )
+
+            if key not in cache:
+                result = func(*args, **kwargs)
+                cache[key] = deepcopy(result)
+
+            return deepcopy(cache[key])
+
+        wrapper.clear_cache = cache.clear
+        return wrapper
+
+    return decorator
